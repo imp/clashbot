@@ -133,5 +133,12 @@ pub struct Urls {
     pub medium: Option<String>,
     pub small: Option<String>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyTokenRequest {
+    pub token: String,
+}
+
 #[cfg(test)]
 mod tests;

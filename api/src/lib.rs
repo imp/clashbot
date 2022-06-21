@@ -15,9 +15,11 @@
 
 use serde::{Deserialize, Serialize};
 
+pub use client::Client;
 pub use error::ClientError;
 pub use player::Player;
 pub use player::PlayerClan;
 
+pub mod client;
 pub mod error;
 pub mod player;

@@ -13,6 +13,15 @@
 #![warn(unused)]
 #![deny(warnings)]
 
-fn main() {
-    println!("Hello, world!");
+use std::env;
+
+use clashofclans_api::Client;
+
+fn main() -> anyhow::Result<()> {
+    let token = env::var("COC_TOKEN")?;
+    let client = Client::new(token);
+    // let player = client.player("%23LVGV0CJC")?;
+    let player = client.player("#LVGV0CJC")?;
+    println!("{player:#?}");
+    Ok(())
 }
