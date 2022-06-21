@@ -22,6 +22,11 @@ fn main() -> anyhow::Result<()> {
     let client = Client::new(token);
     // let player = client.player("%23LVGV0CJC")?;
     let player = client.player("#LVGV0CJC")?;
-    println!("{player:#?}");
+    // println!("{player:#?}");
+    println!("Player: {} (clan: {:#?})", player.name, player.clan);
+    let clan = player.clan.tag;
+    let clan = client.clan(clan)?;
+    println!("{clan:#?}");
+
     Ok(())
 }

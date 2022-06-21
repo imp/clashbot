@@ -105,14 +105,6 @@ pub enum WarPreference {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Label {
-    pub name: JsonLocalizedName,
-    pub id: u64,
-    pub icon_urls: Urls,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PlayerAchievementProgress {
     pub stars: u64,
     pub value: u64,
@@ -121,17 +113,6 @@ pub struct PlayerAchievementProgress {
     pub info: JsonLocalizedName,
     pub completion_info: JsonLocalizedName,
     pub village: Village,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct JsonLocalizedName(Option<String>);
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Urls {
-    pub large: Option<String>,
-    pub medium: Option<String>,
-    pub small: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

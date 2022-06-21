@@ -24,6 +24,12 @@ impl Client {
         self.get(url)
     }
 
+    pub fn clan(&self, clan: impl AsRef<str>) -> Result<Clan, ClientError> {
+        let clan = urlencoding::encode(clan.as_ref());
+        let url = self.url("clans", &clan)?;
+        self.get(url)
+    }
+
     fn url(&self, path: &str, arg: &str) -> Result<reqwest::Url, ClientError> {
         let url = format!("{API_URL}{path}/{arg}");
         reqwest::Url::parse(&url).map_err(ClientError::parse_error)
