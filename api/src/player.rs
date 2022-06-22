@@ -4,11 +4,12 @@ use super::*;
 #[serde(rename_all = "camelCase")]
 pub struct Player {
     pub clan: PlayerClan,
-    pub league: League,
+    pub league: Option<League>,
     pub attack_wins: u64,
+    #[serde(default)]
     pub town_hall_weapon_level: u64,
     pub versus_battle_wins: u64,
-    pub legend_statistics: PlayerLegendStatistics,
+    pub legend_statistics: Option<PlayerLegendStatistics>,
     pub heroes: Vec<PlayerItemLevel>,
     pub spells: Vec<PlayerItemLevel>,
     pub role: Role,
@@ -119,6 +120,14 @@ pub struct PlayerAchievementProgress {
 #[serde(rename_all = "camelCase")]
 pub struct VerifyTokenRequest {
     pub token: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyTokenResponse {
+    pub tag: String,
+    pub token: String,
+    pub status: String,
 }
 
 #[cfg(test)]

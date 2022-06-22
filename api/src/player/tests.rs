@@ -891,7 +891,7 @@ const PLAYER_JSON: &str = r##"
 "##;
 
 #[test]
-fn test_name() {
+fn player() {
     let player: Player = json::from_str(PLAYER_JSON).unwrap();
     assert_eq!(player.name, "ABCdef");
 }
