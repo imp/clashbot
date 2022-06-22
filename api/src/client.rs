@@ -1,5 +1,7 @@
 use serde::de;
 
+use crate::war::ClanWarLog;
+
 use super::*;
 
 const API_URL: &str = "https://api.clashofclans.com/v1/";
@@ -30,6 +32,12 @@ impl Client {
         self.get(url)
     }
 
+    pub fn warlog(&self, clan: impl AsRef<str>) -> Result<ClanWarLog, ClientError> {
+        let clan = urlencoding::encode(clan.as_ref());
+        let warlog = format!("{clan}/warlog");
+        let url = self.url("clans", &warlog)?;
+        self.get(url)
+    }
     fn url(&self, path: &str, arg: &str) -> Result<reqwest::Url, ClientError> {
         let url = format!("{API_URL}{path}/{arg}");
         reqwest::Url::parse(&url).map_err(ClientError::parse_error)

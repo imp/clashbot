@@ -29,6 +29,7 @@ pub mod client;
 pub mod clan;
 pub mod error;
 pub mod player;
+pub mod war;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JsonLocalizedName(Option<String>);
