@@ -4,8 +4,9 @@ use thiserror::Error;
 
 use super::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, Error, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Error, Serialize, Deserialize)]
 #[error("ClientError: {message}: ({reason})")]
+#[serde(default)]
 pub struct ClientError {
     pub reason: String,
     pub message: String,

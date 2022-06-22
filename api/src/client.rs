@@ -44,7 +44,23 @@ impl Client {
             .get(url)
             .bearer_auth(&self.token)
             .send()?
+            .error_for_status2()?
             .json()?;
         Ok(player)
+    }
+}
+
+trait ResponseExt: Sized {
+    fn error_for_status2(self) -> Result<Self, ClientError>;
+}
+
+impl ResponseExt for reqwest::blocking::Response {
+    fn error_for_status2(self) -> Result<Self, ClientError> {
+        if self.status().is_success() {
+            Ok(self)
+        } else {
+            let error = self.json()?;
+            Err(error)
+        }
     }
 }
