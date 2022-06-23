@@ -13,33 +13,34 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(token: String) -> Self {
-        Self {
-            token,
-            client: reqwest::blocking::Client::new(),
-        }
+    pub fn new(token: impl ToString) -> Self {
+        let token = token.to_string();
+        let client = reqwest::blocking::Client::new();
+        Self { token, client }
     }
 
     pub fn player(&self, player: impl AsRef<str>) -> Result<Player, ClientError> {
         let player = urlencoding::encode(player.as_ref());
-        let url = self.url("players", &player)?;
+        let path = format!("players/{player}");
+        let url = self.url(path)?;
         self.get(url)
     }
 
     pub fn clan(&self, clan: impl AsRef<str>) -> Result<Clan, ClientError> {
         let clan = urlencoding::encode(clan.as_ref());
-        let url = self.url("clans", &clan)?;
+        let path = format!("clans/{clan}");
+        let url = self.url(path)?;
         self.get(url)
     }
 
     pub fn warlog(&self, clan: impl AsRef<str>) -> Result<ClanWarLog, ClientError> {
         let clan = urlencoding::encode(clan.as_ref());
-        let warlog = format!("{clan}/warlog");
-        let url = self.url("clans", &warlog)?;
+        let path = format!("clans/{clan}/warlog");
+        let url = self.url(path)?;
         self.get(url)
     }
-    fn url(&self, path: &str, arg: &str) -> Result<reqwest::Url, ClientError> {
-        let url = format!("{API_URL}{path}/{arg}");
+    fn url(&self, path: String) -> Result<reqwest::Url, ClientError> {
+        let url = format!("{API_URL}{path}");
         reqwest::Url::parse(&url).map_err(ClientError::parse_error)
     }
 
