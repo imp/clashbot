@@ -7,7 +7,10 @@ edition = "2021"
 anyhow = "1.0"
 clashofclans-api = { version = "0.0.0", path = "../api" }
 directories = "4.0"
-mongodb = { version = "2.2", default-features = false, features = ["sync"] }
+mongodb = { version = "2.2", default-features = false, features = [
+    "sync",
+    "zstd-compression",
+] }
 serde = { version = "1.0", features = ["derive"] }
 toml_edit = { version = "0.14", features = ["easy"] }
 # tracing = "0.1"
