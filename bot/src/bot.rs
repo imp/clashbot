@@ -163,8 +163,7 @@ impl Bot {
     }
 
     fn players_from_clan(&self, tag: &str) -> BTreeSet<String> {
-        self.client
-            .clan(tag)
+        self.clan(tag)
             .map(|clan| clan.member_list)
             .unwrap_or_default()
             .into_iter()
@@ -173,19 +172,10 @@ impl Bot {
     }
 
     fn clans_from_player(&self, tag: &str) -> BTreeSet<String> {
-        if let Some(clan) = self.client.player(tag).ok().and_then(|player| player.clan) {
-            self.client
-                .warlog(clan.tag)
-                .map(|warlog| warlog.items)
-                .unwrap_or_default()
-                .into_iter()
-                .filter_map(|war| war.opponent.details)
-                .map(|details| details.tag)
-                .collect()
-        } else {
-            println!("Failed to load player {tag}");
-            BTreeSet::new()
-        }
+        self.player(tag)
+            .and_then(|player| player.clan)
+            .map(|clan| self.warlog(&clan.tag))
+            .unwrap_or_default()
     }
 
     fn update_players(&mut self) {
@@ -228,5 +218,31 @@ impl Bot {
         }
         self.clans = clans;
         println!("Updated {} clans", self.clans.len());
+    }
+
+    fn player(&self, tag: &str) -> Option<Player> {
+        self.client
+            .player(tag)
+            .map_err(|e| println!("Failed to load player {tag}: {e}"))
+            .ok()
+    }
+
+    fn clan(&self, tag: &str) -> Option<Clan> {
+        self.client
+            .clan(tag)
+            .map_err(|e| println!("Failed to load clan {tag}: {e}"))
+            .ok()
+    }
+
+    fn warlog(&self, tag: &str) -> BTreeSet<String> {
+        self.client
+            .warlog(tag)
+            .map_err(|e| println!("Failed to load warlog {tag}: {e}"))
+            .map(|warlog| warlog.items)
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|war| war.opponent.details)
+            .map(|details| details.tag)
+            .collect()
     }
 }
