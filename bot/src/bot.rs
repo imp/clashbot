@@ -49,7 +49,9 @@ impl Bot {
 
     pub(crate) fn seed(&mut self, seed: &str) {
         if let Ok(player) = self.client.player(seed) {
-            self.clans_queue.insert(player.clan.tag);
+            if let Some(clan) = player.clan {
+                self.clans_queue.insert(clan.tag);
+            }
             self.players_queue.insert(player.tag);
         } else {
             self.players_queue.insert(seed.to_string());
@@ -171,16 +173,19 @@ impl Bot {
     }
 
     fn clans_from_player(&self, tag: &str) -> BTreeSet<String> {
-        self.client
-            .player(tag)
-            .and_then(|player| self.client.clan(player.clan.tag))
-            .and_then(|clan| self.client.warlog(clan.tag))
-            .map(|warlog| warlog.items)
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|war| war.opponent.details)
-            .map(|details| details.tag)
-            .collect()
+        if let Some(clan) = self.client.player(tag).ok().and_then(|player| player.clan) {
+            self.client
+                .warlog(clan.tag)
+                .map(|warlog| warlog.items)
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|war| war.opponent.details)
+                .map(|details| details.tag)
+                .collect()
+        } else {
+            println!("Failed to load player {tag}");
+            BTreeSet::new()
+        }
     }
 
     fn update_players(&mut self) {

@@ -3,7 +3,7 @@ use super::*;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Player {
-    pub clan: PlayerClan,
+    pub clan: Option<PlayerClan>,
     pub league: Option<League>,
     pub attack_wins: u64,
     #[serde(default)]
