@@ -13,20 +13,67 @@
 #![warn(unused)]
 #![deny(warnings)]
 
-use std::env;
+use std::fs;
 
-use clashofclans_api::Client;
+use anyhow::Context;
+use toml_edit::easy;
+
+mod bot;
 
 fn main() -> anyhow::Result<()> {
-    let token = env::var("COC_TOKEN")?;
-    let client = Client::new(token);
-    // let player = client.player("%23LVGV0CJC")?;
-    let player = client.player("#LVGV0CJC")?;
-    // println!("{player:#?}");
-    println!("Player: {} (clan: {:#?})", player.name, player.clan);
-    let clan = player.clan.tag;
-    let clan = client.clan(clan)?;
-    println!("{clan:#?}");
+    let config = Config::load()?;
+
+    let token = config
+        .clashofclans()
+        .context("No Clash Of Clans API token")?;
+
+    let mongo = config.mongodb().context("No MongoDB credentials")?;
+
+    let mut bot = bot::Bot::new(token, mongo);
+    if let Some(seed) = config.seed() {
+        bot.seed(seed);
+    } else {
+        bot.load();
+    }
+
+    bot.collect_new();
+    bot.update();
+    bot.checkpoint();
 
     Ok(())
+}
+
+struct Config {
+    config: easy::Value,
+}
+
+impl Config {
+    fn load() -> anyhow::Result<Self> {
+        let base = directories::BaseDirs::new().context("Finding BaseDir")?;
+        let config = base.home_dir().join(".clashbot").join("config.toml");
+        let text = fs::read_to_string(config)?;
+        let config: easy::Value = easy::from_str(&text)?;
+
+        Ok(Self { config })
+    }
+
+    fn mongodb(&self) -> Option<String> {
+        let mongodb = self.config.get("mongodb")?;
+        let user = mongodb.get("user")?.as_str()?;
+        let password = mongodb.get("password")?.as_str()?;
+        let connection = mongodb
+            .get("connection")?
+            .as_str()?
+            .replace("<user>", user)
+            .replace("<password>", password);
+        Some(connection)
+    }
+
+    fn clashofclans(&self) -> Option<&str> {
+        self.config.get("clashofclans")?.get("token")?.as_str()
+    }
+
+    fn seed(&self) -> Option<&str> {
+        self.config.get("seed")?.get("player")?.as_str()
+    }
 }
