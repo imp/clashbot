@@ -117,7 +117,12 @@ impl Bot {
             println!("Saving {} players", self.players.len());
             let players = self.players_collection();
             let options = options::InsertManyOptions::builder().ordered(false).build();
-            players.insert_many(&self.players, options).unwrap();
+            for chunk in self.players.chunks(50) {
+                match players.insert_many(chunk, options.clone()) {
+                    Ok(_) => {}
+                    Err(err) => println!("Failed to save players chunk: {err}"),
+                }
+            }
         }
     }
 
@@ -126,7 +131,12 @@ impl Bot {
             println!("Saving {} clans", self.clans.len());
             let clans = self.clans_collection();
             let options = options::InsertManyOptions::builder().ordered(false).build();
-            clans.insert_many(&self.clans, options).unwrap();
+            for chunk in self.clans.chunks(50) {
+                match clans.insert_many(chunk, options.clone()) {
+                    Ok(_) => {}
+                    Err(err) => println!("Failed to save clans chunk: {err}"),
+                }
+            }
         }
     }
 
