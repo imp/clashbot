@@ -25,6 +25,7 @@ pub struct Player {
     pub best_trophies: u64,
     pub donations: u64,
     pub donations_received: u64,
+    #[serde(default)]
     pub builder_hall_level: u64,
     pub versus_trophies: u64,
     pub best_versus_trophies: u64,

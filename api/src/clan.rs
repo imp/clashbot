@@ -8,20 +8,24 @@ pub struct Clan {
     pub tag: String,
     pub clan_level: u64,
     pub clan_points: u64,
-    pub chat_language: Language,
+    pub chat_language: Option<Language>,
     pub war_frequency: WarFrequency,
     pub clan_versus_points: u64,
     pub required_trophies: u64,
     pub required_versus_trophies: u64,
     pub required_townhall_level: u64,
     pub is_war_log_public: bool,
+    #[serde(default)]
     pub war_win_streak: u64,
+    #[serde(default)]
     pub war_wins: u64,
+    #[serde(default)]
     pub war_ties: u64,
+    #[serde(default)]
     pub war_losses: u64,
     pub labels: Vec<Label>,
     pub name: String,
-    pub location: Location,
+    pub location: Option<Location>,
     pub r#type: ClanType,
     pub members: u64,
     pub description: String,
