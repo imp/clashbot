@@ -1,3 +1,4 @@
+use std::fmt;
 use std::str::FromStr;
 
 use thiserror::Error;
@@ -5,13 +6,18 @@ use thiserror::Error;
 use super::*;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Error, Serialize, Deserialize)]
-#[error("ClientError: {message}: ({reason})")]
 #[serde(default)]
 pub struct ClientError {
     pub reason: String,
     pub message: String,
     pub r#type: String,
     pub detail: String,
+}
+
+impl fmt::Display for ClientError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.reason)
+    }
 }
 
 impl From<reqwest::Error> for ClientError {
