@@ -11,6 +11,7 @@ pub struct ClanWarLog {
 pub struct ClanWarLogEntry {
     pub clan: WarClan,
     pub team_size: u64,
+    #[serde(default)]
     pub attacks_per_member: u64,
     pub opponent: WarClan,
     pub end_time: String,
