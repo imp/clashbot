@@ -70,14 +70,14 @@ impl Store for Files {
     fn load_players(&self) -> BTreeSet<String> {
         self.read_latest("players")
             .unwrap()
-            .map(|path| path.display().to_string())
+            .filter_map(filename)
             .collect()
     }
 
     fn load_clans(&self) -> BTreeSet<String> {
         self.read_latest("clans")
             .unwrap()
-            .map(|path| path.display().to_string())
+            .filter_map(filename)
             .collect()
     }
 
@@ -88,4 +88,9 @@ impl Store for Files {
     fn save_clans(&self, clans: &[Clan]) {
         self.write_clans(clans).unwrap();
     }
+}
+
+fn filename(path: PathBuf) -> Option<String> {
+    path.file_name()
+        .map(|name| name.to_string_lossy().to_string())
 }
