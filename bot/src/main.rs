@@ -18,7 +18,10 @@ use std::fs;
 use anyhow::Context;
 use toml_edit::easy;
 
+use store::Store;
+
 mod bot;
+mod store;
 
 fn main() -> anyhow::Result<()> {
     let config = Config::load()?;
@@ -28,10 +31,13 @@ fn main() -> anyhow::Result<()> {
         .context("No Clash Of Clans API token")?;
 
     let mongo = config.mongodb().context("No MongoDB credentials")?;
+    let store = store::Mongo::new(mongo);
 
-    let mut bot = bot::Bot::new(token, mongo);
-    if let Some(seed) = config.seed() {
-        bot.seed(seed);
+    let mut bot = bot::Bot::new(token, store);
+    if let Some(seed) = config.seed_player() {
+        bot.seed_players(seed);
+    } else if let Some(seed) = config.seed_clan() {
+        bot.seed_clans(seed);
     } else {
         bot.load();
     }
@@ -73,7 +79,22 @@ impl Config {
         self.config.get("clashofclans")?.get("token")?.as_str()
     }
 
-    fn seed(&self) -> Option<&str> {
-        self.config.get("seed")?.get("player")?.as_str()
+    fn seed_player(&self) -> Option<Vec<&str>> {
+        self.config
+            .get("seed")?
+            .get("player")
+            .and_then(text_or_array)
     }
+
+    fn seed_clan(&self) -> Option<Vec<&str>> {
+        self.config.get("seed")?.get("clan").and_then(text_or_array)
+    }
+}
+
+fn text_or_array(value: &easy::Value) -> Option<Vec<&str>> {
+    let text = value.as_str().map(|text| vec![text]);
+    let array = value
+        .as_array()
+        .map(|array| array.iter().filter_map(|v| v.as_str()).collect());
+    text.or(array)
 }

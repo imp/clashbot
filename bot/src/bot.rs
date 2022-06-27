@@ -4,19 +4,14 @@ use clashofclans_api::Clan;
 use clashofclans_api::Client;
 use clashofclans_api::Player;
 
-// use mongodb::bson::doc;
-use mongodb::options;
-use mongodb::sync;
-// use serde::{Deserialize, Serialize};
-
 // use tracing::{event, Level};
 
-const DB_NAME: &str = "v0";
+use super::*;
 
 #[derive(Debug)]
-pub(crate) struct Bot {
+pub(crate) struct Bot<T: Store> {
     client: Client,
-    mongo: sync::Client,
+    store: T,
     players_queue: BTreeSet<String>,
     players_new: BTreeSet<String>,
     clans_queue: BTreeSet<String>,
@@ -25,10 +20,9 @@ pub(crate) struct Bot {
     clans: Vec<Clan>,
 }
 
-impl Bot {
-    pub(crate) fn new(token: impl ToString, mongodb: impl AsRef<str>) -> Self {
+impl<T: Store> Bot<T> {
+    pub(crate) fn new(token: impl ToString, store: T) -> Self {
         let client = Client::new(token);
-        let mongo = sync::Client::with_uri_str(mongodb).expect("Failed to connect to MongoDB");
         let players_queue = BTreeSet::new();
         let players_new = BTreeSet::new();
         let clans_queue = BTreeSet::new();
@@ -37,7 +31,7 @@ impl Bot {
         let clans = Vec::new();
         Self {
             client,
-            mongo,
+            store,
             players_queue,
             players_new,
             clans_queue,
@@ -47,14 +41,26 @@ impl Bot {
         }
     }
 
-    pub(crate) fn seed(&mut self, seed: &str) {
-        if let Ok(player) = self.client.player(seed) {
-            if let Some(clan) = player.clan {
-                self.clans_queue.insert(clan.tag);
+    pub(crate) fn seed_players(&mut self, seed: Vec<&str>) {
+        for tag in seed {
+            if let Some(player) = self.player(tag) {
+                self.players_queue.insert(player.tag);
+                if let Some(clan) = player.clan {
+                    self.clans_queue.insert(clan.tag);
+                }
+            } else {
+                self.players_queue.insert(tag.to_string());
             }
-            self.players_queue.insert(player.tag);
-        } else {
-            self.players_queue.insert(seed.to_string());
+        }
+    }
+
+    pub(crate) fn seed_clans(&mut self, seed: Vec<&str>) {
+        for tag in seed {
+            if let Some(clan) = self.clan(tag) {
+                self.clans_queue.insert(clan.tag);
+            } else {
+                self.clans_queue.insert(tag.to_string());
+            }
         }
     }
 
@@ -80,65 +86,25 @@ impl Bot {
         self.save_clans();
     }
 
-    fn mongodb(&self) -> sync::Database {
-        self.mongo.database(DB_NAME)
-    }
-
-    fn players_collection(&self) -> sync::Collection<Player> {
-        self.mongodb().collection("players")
-    }
-
-    fn clans_collection(&self) -> sync::Collection<Clan> {
-        self.mongodb().collection("clans")
-    }
-
     fn load_players(&mut self) {
-        let players = self.players_collection();
-        self.players_queue = players
-            .distinct("tag", None, None)
-            .unwrap()
-            .into_iter()
-            // .inspect(|tag| println!("{tag}"))
-            .filter_map(|tag| tag.as_str().map(ToString::to_string))
-            .collect();
+        self.players_queue = self.store.load_players();
     }
 
     fn load_clans(&mut self) {
-        let clans = self.clans_collection();
-        self.clans_queue = clans
-            .distinct("tag", None, None)
-            .unwrap()
-            .into_iter()
-            // .inspect(|tag| println!("{tag}"))
-            .filter_map(|tag| tag.as_str().map(ToString::to_string))
-            .collect();
+        self.clans_queue = self.store.load_clans();
     }
 
     fn save_players(&self) {
         if !self.players.is_empty() {
             println!("Saving {} players", self.players.len());
-            let players = self.players_collection();
-            let options = options::InsertManyOptions::builder().ordered(false).build();
-            for chunk in self.players.chunks(50) {
-                match players.insert_many(chunk, options.clone()) {
-                    Ok(_) => {}
-                    Err(err) => println!("Failed to save players chunk: {err}"),
-                }
-            }
+            self.store.save_players(&self.players);
         }
     }
 
     fn save_clans(&self) {
         if !self.clans.is_empty() {
             println!("Saving {} clans", self.clans.len());
-            let clans = self.clans_collection();
-            let options = options::InsertManyOptions::builder().ordered(false).build();
-            for chunk in self.clans.chunks(50) {
-                match clans.insert_many(chunk, options.clone()) {
-                    Ok(_) => {}
-                    Err(err) => println!("Failed to save clans chunk: {err}"),
-                }
-            }
+            self.store.save_clans(&self.clans);
         }
     }
 
