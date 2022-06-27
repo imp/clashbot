@@ -13,7 +13,7 @@ pub struct Player {
     pub heroes: Vec<PlayerItemLevel>,
     pub spells: Vec<PlayerItemLevel>,
     pub role: Option<Role>,
-    pub war_preference: WarPreference,
+    pub war_preference: Option<WarPreference>,
     pub town_hall_level: u64,
     pub troops: Vec<PlayerItemLevel>,
     pub defense_wins: u64,
