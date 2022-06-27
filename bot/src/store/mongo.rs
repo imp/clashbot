@@ -6,6 +6,7 @@ use super::*;
 
 const DB_NAME: &str = "v0";
 
+#[derive(Debug)]
 pub(crate) struct Mongo {
     mongo: sync::Client,
 }

@@ -30,10 +30,22 @@ fn main() -> anyhow::Result<()> {
         .clashofclans()
         .context("No Clash Of Clans API token")?;
 
-    let mongo = config.mongodb().context("No MongoDB credentials")?;
-    let store = store::Mongo::new(mongo);
+    let mut bot = match config.store_type().context("No store type")? {
+        "mongo" => {
+            let mongo = config.mongodb().context("No MongoDB credentials")?;
+            let store = store::Mongo::new(mongo);
+            bot::Bot::new(token, store)
+        }
+        "files" => {
+            let base = config.files().context("No files section in config")?;
+            let store = store::Files::new(base);
+            bot::Bot::new(token, store)
+        }
+        other => {
+            anyhow::bail!("Unknown store type: {other}");
+        }
+    };
 
-    let mut bot = bot::Bot::new(token, store);
     if let Some(seed) = config.seed_player() {
         bot.seed_players(seed);
     } else if let Some(seed) = config.seed_clan() {
@@ -77,6 +89,14 @@ impl Config {
 
     fn clashofclans(&self) -> Option<&str> {
         self.config.get("clashofclans")?.get("token")?.as_str()
+    }
+
+    fn store_type(&self) -> Option<&str> {
+        self.config.get("store")?.get("type")?.as_str()
+    }
+
+    fn files(&self) -> Option<&str> {
+        self.config.get("files")?.get("path")?.as_str()
     }
 
     fn seed_player(&self) -> Option<Vec<&str>> {

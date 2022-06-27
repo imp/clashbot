@@ -1,14 +1,16 @@
 use std::collections::BTreeSet;
+use std::fmt;
 
 use clashofclans_api::Clan;
 use clashofclans_api::Player;
 
+pub(crate) use files::Files;
 pub(crate) use mongo::Mongo;
 
 mod files;
 mod mongo;
 
-pub(crate) trait Store {
+pub(crate) trait Store: fmt::Debug {
     fn load_players(&self) -> BTreeSet<String>;
 
     fn load_clans(&self) -> BTreeSet<String>;

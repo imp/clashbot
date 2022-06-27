@@ -9,9 +9,9 @@ use clashofclans_api::Player;
 use super::*;
 
 #[derive(Debug)]
-pub(crate) struct Bot<T: Store> {
+pub(crate) struct Bot {
     client: Client,
-    store: T,
+    store: Box<dyn Store>,
     players_queue: BTreeSet<String>,
     players_new: BTreeSet<String>,
     clans_queue: BTreeSet<String>,
@@ -20,8 +20,12 @@ pub(crate) struct Bot<T: Store> {
     clans: Vec<Clan>,
 }
 
-impl<T: Store> Bot<T> {
-    pub(crate) fn new(token: impl ToString, store: T) -> Self {
+impl Bot {
+    pub(crate) fn new<T>(token: impl ToString, store: T) -> Self
+    where
+        T: Store + 'static,
+    {
+        let store = Box::new(store);
         let client = Client::new(token);
         let players_queue = BTreeSet::new();
         let players_new = BTreeSet::new();
