@@ -4,6 +4,7 @@ use clashofclans_api::Clan;
 use clashofclans_api::Client;
 use clashofclans_api::Player;
 
+use indicatif::{ProgressBar, ProgressStyle};
 // use tracing::{event, Level};
 
 use super::*;
@@ -113,23 +114,33 @@ impl Bot {
     }
 
     pub(crate) fn collect_new_players(&mut self) {
+        let progress = progress_bar("Checking clan", self.clans_queue.len());
         let players = self
             .clans_queue
             .iter()
+            .inspect(|tag| {
+                progress.set_message(tag.to_string());
+                progress.inc(1);
+            })
             .flat_map(|tag| self.players_from_clan(tag))
             .collect::<BTreeSet<_>>();
         self.players_new = players.difference(&self.players_queue).cloned().collect();
-        println!("Discovered {} new players", self.players_new.len());
+        progress.finish_with_message(format!("{} new players", self.players_new.len()));
     }
 
     pub(crate) fn collect_new_clans(&mut self) {
+        let progress = progress_bar("Checking player", self.players_queue.len());
         let clans = self
             .players_queue
             .iter()
+            .inspect(|tag| {
+                progress.set_message(tag.to_string());
+                progress.inc(1);
+            })
             .flat_map(|tag| self.clans_from_player(tag))
             .collect::<BTreeSet<_>>();
         self.clans_new = clans.difference(&self.clans_queue).cloned().collect();
-        println!("Discovered {} new clans", self.clans_new.len());
+        progress.finish_with_message(format!("{} new clans", self.clans_new.len()));
     }
 
     fn players_from_clan(&self, tag: &str) -> BTreeSet<String> {
@@ -149,10 +160,15 @@ impl Bot {
     }
 
     fn update_players(&mut self) {
+        let progress = progress_bar(
+            "Update player",
+            self.players_queue.len() + self.players_new.len(),
+        );
         let mut players = Vec::new();
         let mut failures = 0_u64;
 
         for tag in self.players_queue.iter().chain(self.players_new.iter()) {
+            progress.set_message(tag.clone());
             match self.client.player(tag) {
                 Ok(player) => players.push(player),
                 Err(e) => {
@@ -160,20 +176,23 @@ impl Bot {
                     failures += 1;
                 }
             }
+            progress.inc(1);
         }
+        progress.finish_with_message(format!("Updated {} players", players.len()));
 
         if failures > 0 {
             println!("Failed to load {} players", failures);
         }
         self.players = players;
-        println!("Updated {} players", self.players.len());
     }
 
     fn update_clans(&mut self) {
+        let progress = progress_bar("Update clan", self.clans_queue.len() + self.clans_new.len());
         let mut clans = Vec::new();
         let mut failures = 0_u64;
 
         for tag in self.clans_queue.iter().chain(self.clans_new.iter()) {
+            progress.set_message(tag.clone());
             match self.client.clan(tag) {
                 Ok(clan) => clans.push(clan),
                 Err(e) => {
@@ -181,13 +200,14 @@ impl Bot {
                     failures += 1;
                 }
             }
+            progress.inc(1);
         }
+        progress.finish_with_message(format!("Updated {} clans", clans.len()));
 
         if failures > 0 {
             println!("Failed to load {} clans", failures);
         }
         self.clans = clans;
-        println!("Updated {} clans", self.clans.len());
     }
 
     fn player(&self, tag: &str) -> Option<Player> {
@@ -215,4 +235,14 @@ impl Bot {
             .map(|details| details.tag)
             .collect()
     }
+}
+
+fn progress_style() -> ProgressStyle {
+    ProgressStyle::default_bar().template("{prefix} {msg:11} {bar:40} {pos}/{len} [{elapsed}]")
+}
+
+fn progress_bar(prefix: &str, len: usize) -> ProgressBar {
+    ProgressBar::new(len as u64)
+        .with_style(progress_style())
+        .with_prefix(prefix.to_string())
 }
