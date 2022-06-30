@@ -44,4 +44,8 @@ impl ClientError {
     pub fn is_access_denied(&self) -> bool {
         self.reason == "accessDenied"
     }
+
+    pub fn is_in_maintenance(&self) -> bool {
+        self.reason == "inMaintenance"
+    }
 }
