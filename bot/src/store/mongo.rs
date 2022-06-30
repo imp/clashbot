@@ -51,7 +51,7 @@ impl Store for Mongo {
             .collect()
     }
 
-    fn save_players(&self, players: &[Player]) {
+    fn save_players(&self, players: &[&Player]) {
         if !players.is_empty() {
             println!("Saving {} players", players.len());
             let collection = self.players_collection();
@@ -65,7 +65,7 @@ impl Store for Mongo {
         }
     }
 
-    fn save_clans(&self, clans: &[Clan]) {
+    fn save_clans(&self, clans: &[&Clan]) {
         if !clans.is_empty() {
             println!("Saving {} clans", clans.len());
             let collection = self.clans_collection();

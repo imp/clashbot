@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use clashofclans_api::Clan;
 use clashofclans_api::Client;
@@ -9,16 +9,16 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 use super::*;
 
+mod api;
+
 #[derive(Debug)]
 pub(crate) struct Bot {
-    client: Client,
+    api: api::Api,
     store: Box<dyn Store>,
     players_queue: BTreeSet<String>,
     players_new: BTreeSet<String>,
     clans_queue: BTreeSet<String>,
     clans_new: BTreeSet<String>,
-    players: Vec<Player>,
-    clans: Vec<Clan>,
 }
 
 impl Bot {
@@ -26,32 +26,29 @@ impl Bot {
     where
         T: Store + 'static,
     {
+        let api = api::Api::new(token);
         let store = Box::new(store);
-        let client = Client::new(token);
         let players_queue = BTreeSet::new();
         let players_new = BTreeSet::new();
         let clans_queue = BTreeSet::new();
         let clans_new = BTreeSet::new();
-        let players = Vec::new();
-        let clans = Vec::new();
+
         Self {
-            client,
+            api,
             store,
             players_queue,
             players_new,
             clans_queue,
             clans_new,
-            players,
-            clans,
         }
     }
 
     pub(crate) fn seed_players(&mut self, seed: Vec<&str>) {
         for tag in seed {
-            if let Some(player) = self.player(tag) {
-                self.players_queue.insert(player.tag);
-                if let Some(clan) = player.clan {
-                    self.clans_queue.insert(clan.tag);
+            if let Some(player) = self.api.player(tag) {
+                self.players_queue.insert(player.tag.clone());
+                if let Some(ref clan) = player.clan {
+                    self.clans_queue.insert(clan.tag.clone());
                 }
             } else {
                 self.players_queue.insert(tag.to_string());
@@ -61,8 +58,8 @@ impl Bot {
 
     pub(crate) fn seed_clans(&mut self, seed: Vec<&str>) {
         for tag in seed {
-            if let Some(clan) = self.clan(tag) {
-                self.clans_queue.insert(clan.tag);
+            if let Some(clan) = self.api.clan(tag) {
+                self.clans_queue.insert(clan.tag.clone());
             } else {
                 self.clans_queue.insert(tag.to_string());
             }
@@ -100,16 +97,21 @@ impl Bot {
     }
 
     fn save_players(&self) {
-        if !self.players.is_empty() {
-            println!("Saving {} players", self.players.len());
-            self.store.save_players(&self.players);
+        let players = self.api.all_players().values().collect::<Vec<_>>();
+
+        if !players.is_empty() {
+            // let progress = progress_bar("Saving players", players.len());
+            println!("Saving {} players", players.len());
+            self.store.save_players(&players);
+            // progress.finish();
         }
     }
 
     fn save_clans(&self) {
-        if !self.clans.is_empty() {
-            println!("Saving {} clans", self.clans.len());
-            self.store.save_clans(&self.clans);
+        let clans = self.api.all_clans().values().collect::<Vec<_>>();
+        if !clans.is_empty() {
+            println!("Saving {} clans", clans.len());
+            self.store.save_clans(&clans);
         }
     }
 
@@ -118,11 +120,9 @@ impl Bot {
         let players = self
             .clans_queue
             .iter()
-            .inspect(|tag| {
-                progress.set_message(tag.to_string());
-                progress.inc(1);
-            })
-            .flat_map(|tag| self.players_from_clan(tag))
+            .inspect(|tag| progress_update(&progress, tag))
+            .filter_map(|tag| self.api.players_from_clan(tag))
+            .flatten()
             .collect::<BTreeSet<_>>();
         self.players_new = players.difference(&self.players_queue).cloned().collect();
         progress.finish_with_message(format!("{} new players", self.players_new.len()));
@@ -133,30 +133,12 @@ impl Bot {
         let clans = self
             .players_queue
             .iter()
-            .inspect(|tag| {
-                progress.set_message(tag.to_string());
-                progress.inc(1);
-            })
-            .flat_map(|tag| self.clans_from_player(tag))
+            .inspect(|tag| progress_update(&progress, tag))
+            .filter_map(|tag| self.api.clans_from_player(tag))
+            .flatten()
             .collect::<BTreeSet<_>>();
         self.clans_new = clans.difference(&self.clans_queue).cloned().collect();
         progress.finish_with_message(format!("{} new clans", self.clans_new.len()));
-    }
-
-    fn players_from_clan(&self, tag: &str) -> BTreeSet<String> {
-        self.clan(tag)
-            .map(|clan| clan.member_list)
-            .unwrap_or_default()
-            .into_iter()
-            .map(|member| member.tag)
-            .collect()
-    }
-
-    fn clans_from_player(&self, tag: &str) -> BTreeSet<String> {
-        self.player(tag)
-            .and_then(|player| player.clan)
-            .map(|clan| self.warlog(&clan.tag))
-            .unwrap_or_default()
     }
 
     fn update_players(&mut self) {
@@ -164,85 +146,56 @@ impl Bot {
             "Update player",
             self.players_queue.len() + self.players_new.len(),
         );
-        let mut players = Vec::new();
         let mut failures = 0_u64;
 
         for tag in self.players_queue.iter().chain(self.players_new.iter()) {
-            progress.set_message(tag.clone());
-            match self.client.player(tag) {
-                Ok(player) => players.push(player),
-                Err(e) => {
-                    println!("Failed to load player {tag}: {e}");
-                    failures += 1;
-                }
+            if let Some(player) = self.api.player(tag) {
+                progress_update(&progress, &format!("{} ({})", player.name, player.tag));
+            } else {
+                progress_update(&progress, tag);
+                failures += 1;
             }
-            progress.inc(1);
         }
-        progress.finish_with_message(format!("Updated {} players", players.len()));
+        progress.finish();
 
         if failures > 0 {
             println!("Failed to load {} players", failures);
         }
-        self.players = players;
     }
 
     fn update_clans(&mut self) {
         let progress = progress_bar("Update clan", self.clans_queue.len() + self.clans_new.len());
-        let mut clans = Vec::new();
         let mut failures = 0_u64;
 
         for tag in self.clans_queue.iter().chain(self.clans_new.iter()) {
-            progress.set_message(tag.clone());
-            match self.client.clan(tag) {
-                Ok(clan) => clans.push(clan),
-                Err(e) => {
-                    println!("Failed to load clan {tag}: {e}");
-                    failures += 1;
-                }
+            if let Some(clan) = self.api.clan(tag) {
+                progress_update(&progress, &format!("{} ({})", clan.name, clan.tag));
+            } else {
+                progress_update(&progress, tag);
+                failures += 1;
             }
-            progress.inc(1);
         }
-        progress.finish_with_message(format!("Updated {} clans", clans.len()));
+        progress.finish();
 
         if failures > 0 {
             println!("Failed to load {} clans", failures);
         }
-        self.clans = clans;
-    }
-
-    fn player(&self, tag: &str) -> Option<Player> {
-        self.client
-            .player(tag)
-            .map_err(|e| println!("Failed to load player {tag}: {e}"))
-            .ok()
-    }
-
-    fn clan(&self, tag: &str) -> Option<Clan> {
-        self.client
-            .clan(tag)
-            .map_err(|e| println!("Failed to load clan {tag}: {e}"))
-            .ok()
-    }
-
-    fn warlog(&self, tag: &str) -> BTreeSet<String> {
-        self.client
-            .warlog(tag)
-            .map_err(|e| println!("Failed to load warlog {tag}: {e}"))
-            .map(|warlog| warlog.items)
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|war| war.opponent.details)
-            .map(|details| details.tag)
-            .collect()
     }
 }
 
 fn progress_style() -> ProgressStyle {
-    ProgressStyle::default_bar().template("{prefix} {msg:11} {bar:40} {pos}/{len} [{elapsed}]")
+    ProgressStyle::default_bar()
+        .template("{prefix:15}: {msg:32} {bar:60} {pos}/{len} [{elapsed} ETA: {eta}]")
+        .unwrap()
 }
 
 fn progress_bar(prefix: &str, len: usize) -> ProgressBar {
     ProgressBar::new(len as u64)
         .with_style(progress_style())
         .with_prefix(prefix.to_string())
+}
+
+fn progress_update(pb: &ProgressBar, msg: &str) {
+    pb.set_message(msg.trim().to_string());
+    pb.inc(1)
 }

@@ -1,5 +1,7 @@
 use super::*;
 
+mod impls;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClanWarLog {

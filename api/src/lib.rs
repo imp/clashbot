@@ -23,6 +23,7 @@ pub use player::League;
 pub use player::Player;
 pub use player::PlayerClan;
 pub use player::Role;
+pub use war::ClanWarLog;
 
 pub mod client;
 

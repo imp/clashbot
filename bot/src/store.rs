@@ -15,7 +15,7 @@ pub(crate) trait Store: fmt::Debug {
 
     fn load_clans(&self) -> BTreeSet<String>;
 
-    fn save_players(&self, players: &[Player]);
+    fn save_players(&self, players: &[&Player]);
 
-    fn save_clans(&self, clans: &[Clan]);
+    fn save_clans(&self, clans: &[&Clan]);
 }

@@ -45,7 +45,7 @@ impl Files {
         Ok(path)
     }
 
-    fn write_players(&self, players: &[Player]) -> io::Result<()> {
+    fn write_players(&self, players: &[&Player]) -> io::Result<()> {
         let path = self.create_now()?.join("players");
         fs::create_dir_all(&path)?;
         for player in players {
@@ -55,7 +55,7 @@ impl Files {
         Ok(())
     }
 
-    fn write_clans(&self, clans: &[Clan]) -> io::Result<()> {
+    fn write_clans(&self, clans: &[&Clan]) -> io::Result<()> {
         let path = self.create_now()?.join("clans");
         fs::create_dir_all(&path)?;
         for clan in clans {
@@ -81,11 +81,11 @@ impl Store for Files {
             .collect()
     }
 
-    fn save_players(&self, players: &[Player]) {
+    fn save_players(&self, players: &[&Player]) {
         self.write_players(players).unwrap();
     }
 
-    fn save_clans(&self, clans: &[Clan]) {
+    fn save_clans(&self, clans: &[&Clan]) {
         self.write_clans(clans).unwrap();
     }
 }

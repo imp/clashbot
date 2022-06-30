@@ -40,4 +40,8 @@ impl ClientError {
             detail: "".to_string(),
         }
     }
+
+    pub fn is_access_denied(&self) -> bool {
+        self.reason == "accessDenied"
+    }
 }

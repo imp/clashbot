@@ -33,7 +33,7 @@ impl Client {
         self.get(url)
     }
 
-    pub fn warlog(&self, clan: impl AsRef<str>) -> Result<ClanWarLog, ClientError> {
+    pub fn clan_warlog(&self, clan: impl AsRef<str>) -> Result<ClanWarLog, ClientError> {
         let clan = urlencoding::encode(clan.as_ref());
         let path = format!("clans/{clan}/warlog");
         let url = self.url(path)?;
