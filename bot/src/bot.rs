@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 
 use clashofclans_api::Clan;
@@ -97,7 +98,8 @@ impl Bot {
     }
 
     fn save_players(&self) {
-        let players = self.api.all_players().values().collect::<Vec<_>>();
+        let players = self.api.all_players();
+        let players = players.values().collect::<Vec<_>>();
 
         if !players.is_empty() {
             // let progress = progress_bar("Saving players", players.len());
@@ -108,7 +110,8 @@ impl Bot {
     }
 
     fn save_clans(&self) {
-        let clans = self.api.all_clans().values().collect::<Vec<_>>();
+        let clans = self.api.all_clans();
+        let clans = clans.values().collect::<Vec<_>>();
         if !clans.is_empty() {
             println!("Saving {} clans", clans.len());
             self.store.save_clans(&clans);
@@ -120,8 +123,8 @@ impl Bot {
         let players = self
             .clans_queue
             .iter()
-            .inspect(|tag| progress_update(&progress, tag))
-            .filter_map(|tag| self.api.players_from_clan(tag))
+            // .inspect(|tag| progress_update(&progress, tag))
+            .filter_map(|tag| self.players_from_clan(tag, &progress))
             .flatten()
             .collect::<BTreeSet<_>>();
         self.players_new = players.difference(&self.players_queue).cloned().collect();
@@ -133,8 +136,8 @@ impl Bot {
         let clans = self
             .players_queue
             .iter()
-            .inspect(|tag| progress_update(&progress, tag))
-            .filter_map(|tag| self.api.clans_from_player(tag))
+            // .inspect(|tag| progress_update(&progress, tag))
+            .filter_map(|tag| self.clans_from_player(tag, &progress))
             .flatten()
             .collect::<BTreeSet<_>>();
         self.clans_new = clans.difference(&self.clans_queue).cloned().collect();
@@ -150,9 +153,9 @@ impl Bot {
 
         for tag in self.players_queue.iter().chain(self.players_new.iter()) {
             if let Some(player) = self.api.player(tag) {
-                progress_update(&progress, &format!("{} ({})", player.name, player.tag));
+                progress_update(&progress, format!("{} ({})", player.name, player.tag));
             } else {
-                progress_update(&progress, tag);
+                progress_update(&progress, tag.clone());
                 failures += 1;
             }
         }
@@ -169,9 +172,9 @@ impl Bot {
 
         for tag in self.clans_queue.iter().chain(self.clans_new.iter()) {
             if let Some(clan) = self.api.clan(tag) {
-                progress_update(&progress, &format!("{} ({})", clan.name, clan.tag));
+                progress_update(&progress, format!("{} ({})", clan.name, clan.tag));
             } else {
-                progress_update(&progress, tag);
+                progress_update(&progress, tag.clone());
                 failures += 1;
             }
         }
@@ -180,6 +183,24 @@ impl Bot {
         if failures > 0 {
             println!("Failed to load {} clans", failures);
         }
+    }
+
+    fn players_from_clan(&self, tag: &str, progress: &ProgressBar) -> Option<BTreeSet<String>> {
+        let clan = self.api.clan(tag)?;
+        progress_update(progress, format!("{} ({})", clan.name, clan.tag));
+        let players = clan
+            .member_list
+            .iter()
+            .map(|member| member.tag.clone())
+            .collect();
+        Some(players)
+    }
+
+    fn clans_from_player(&self, tag: &str, progress: &ProgressBar) -> Option<BTreeSet<String>> {
+        let player = self.api.player(tag)?;
+        progress_update(progress, format!("{} ({})", player.name, player.tag));
+        let tag = player.clan.as_ref()?.tag.clone();
+        self.api.war_opponents(&tag)
     }
 }
 
@@ -195,7 +216,7 @@ fn progress_bar(prefix: &str, len: usize) -> ProgressBar {
         .with_prefix(prefix.to_string())
 }
 
-fn progress_update(pb: &ProgressBar, msg: &str) {
-    pb.set_message(msg.trim().to_string());
+fn progress_update(pb: &ProgressBar, msg: impl Into<Cow<'static, str>>) {
+    pb.set_message(msg);
     pb.inc(1)
 }

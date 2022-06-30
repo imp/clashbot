@@ -24,6 +24,7 @@ pub use player::Player;
 pub use player::PlayerClan;
 pub use player::Role;
 pub use war::ClanWarLog;
+pub use war::WarClanDetails;
 
 pub mod client;
 
