@@ -56,6 +56,10 @@ impl Api {
     }
 
     pub(super) fn war_opponents(&self, tag: &str) -> Option<BTreeSet<String>> {
+        if !self.clan(tag).map_or(true, |clan| clan.is_war_log_public) {
+            return None;
+        }
+
         if !self.warlogs.borrow().contains_key(tag) {
             if let Some(warlog) = self.get_warlog(tag) {
                 self.warlogs.borrow_mut().insert(tag.to_string(), warlog);
