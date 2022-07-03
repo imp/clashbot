@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 clashofclans-api = { version = "0.0.0", path = "../api" }
+clap = { version = "3.1", features = ["derive"] }
 directories = "4.0"
 indicatif = { version = "0.17.0-rc.11", features = ["improved_unicode"] }
 mongodb = { version = "2.2", default-features = false, features = [
