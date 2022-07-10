@@ -16,49 +16,98 @@
 use std::fs;
 
 use anyhow::Context;
+use clap::{Parser, Subcommand};
 use toml_edit::easy;
 
+use data::Timestamped;
 use store::Store;
 
 mod bot;
+mod data;
 mod store;
 
-fn main() -> anyhow::Result<()> {
-    let config = Config::load()?;
+#[derive(Debug, Parser)]
+struct Cli {
+    #[clap(subcommand)]
+    command: Command,
+}
 
-    let token = config
-        .clashofclans()
-        .context("No Clash Of Clans API token")?;
+#[derive(Debug, Subcommand)]
+enum Command {
+    Seed,
+    Load,
+    UpdateClan { tag: Option<String> },
+    UpdatePlayer { tag: Option<String> },
+}
 
-    let mut bot = match config.store_type().context("No store type")? {
-        "mongo" => {
-            let mongo = config.mongodb().context("No MongoDB credentials")?;
-            let store = store::Mongo::new(mongo);
-            bot::Bot::new(token, store)
-        }
-        "files" => {
-            let base = config.files().context("No files section in config")?;
-            let store = store::Files::new(base);
-            bot::Bot::new(token, store)
-        }
-        other => {
-            anyhow::bail!("Unknown store type: {other}");
-        }
-    };
+impl Command {
+    fn exec(self) -> anyhow::Result<()> {
+        let config = Config::load()?;
 
-    if let Some(seed) = config.seed_player() {
-        bot.seed_players(seed);
-    } else if let Some(seed) = config.seed_clan() {
-        bot.seed_clans(seed);
-    } else {
-        bot.load();
+        let token = config
+            .clashofclans()
+            .context("No Clash Of Clans API token")?;
+
+        let mut bot = match config.store_type().context("No store type")? {
+            "mongo" => {
+                let mongo = config.mongodb().context("No MongoDB credentials")?;
+                let store = store::Mongo::new(mongo);
+                bot::Bot::new(token, store)
+            }
+            "files" => {
+                let base = config.files().context("No files section in config")?;
+                let store = store::Files::new(base);
+                bot::Bot::new(token, store)
+            }
+            other => {
+                anyhow::bail!("Unknown store type: {other}");
+            }
+        };
+
+        match self {
+            Self::Seed => {
+                if let Some(seed) = config.seed_player() {
+                    bot.seed_players(seed);
+                }
+                if let Some(seed) = config.seed_clan() {
+                    bot.seed_clans(seed);
+                }
+            }
+            Self::Load => bot.load(),
+            Self::UpdateClan { tag } => {
+                if let Some(ref tag) = tag {
+                    bot.seed_players(vec![tag]);
+                } else {
+                    bot.load_clans();
+                }
+            }
+            Self::UpdatePlayer { tag } => {
+                if let Some(ref tag) = tag {
+                    bot.seed_clans(vec![tag]);
+                } else {
+                    bot.load_players();
+                }
+            }
+        }
+
+        bot.collect_new();
+        bot.update();
+        bot.checkpoint();
+
+        Ok(())
     }
+}
 
-    bot.collect_new();
-    bot.update();
-    bot.checkpoint();
+fn main() -> anyhow::Result<()> {
+    Cli::parse().command.exec()
 
-    Ok(())
+    // if let Some(seed) = config.seed_player() {
+    //     bot.seed_players(seed);
+    // } else if let Some(seed) = config.seed_clan() {
+    //     bot.seed_clans(seed);
+    // } else {
+    //     bot.load();
+    // }
 }
 
 struct Config {

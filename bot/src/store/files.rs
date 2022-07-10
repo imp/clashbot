@@ -1,7 +1,8 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::time;
+
+use time::macros::format_description;
 
 use serde_json as json;
 
@@ -19,48 +20,39 @@ impl Files {
         Self { base }
     }
 
-    fn latest(&self) -> io::Result<PathBuf> {
-        fs::read_dir(&self.base)?
+    fn load_all(&self, path: impl AsRef<Path>) -> io::Result<BTreeSet<String>> {
+        let path = self.base.join(path);
+        let items = fs::read_dir(path)?
             .filter_map(|entry| entry.ok())
             .map(|entry| entry.path())
-            .max()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "No latest directory found"))
+            .filter_map(filename)
+            .collect();
+
+        Ok(items)
     }
 
-    fn read_latest(&self, path: impl AsRef<Path>) -> io::Result<impl Iterator<Item = PathBuf>> {
-        let latest = self.latest().map(|latest| latest.join(path))?;
-        let names = fs::read_dir(latest)?
-            .filter_map(|entry| entry.ok())
-            .map(|entry| entry.path());
-        Ok(names)
-    }
+    fn write_players(&self, players: &[&Timestamped<Player>]) -> io::Result<()> {
+        let format = format_description!("[year][month][day][hour][minute][second]");
 
-    fn create_now(&self) -> io::Result<PathBuf> {
-        let now = time::SystemTime::now()
-            .duration_since(time::UNIX_EPOCH)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
-            .as_secs();
-        let path = self.base.join(format!("{now}"));
-        fs::create_dir_all(&path)?;
-        Ok(path)
-    }
-
-    fn write_players(&self, players: &[&Player]) -> io::Result<()> {
-        let path = self.create_now()?.join("players");
-        fs::create_dir_all(&path)?;
         for player in players {
-            let contents = json::to_string_pretty(player)?;
-            fs::write(path.join(&player.tag), contents).unwrap();
+            let path = self.base.join("players").join(&player.tag);
+            fs::create_dir_all(&path)?;
+            let contents = json::to_string_pretty(player.data())?;
+            let timestamp = player.timestamp().format(&format).unwrap();
+            fs::write(path.join(&timestamp), contents)?;
         }
         Ok(())
     }
 
-    fn write_clans(&self, clans: &[&Clan]) -> io::Result<()> {
-        let path = self.create_now()?.join("clans");
-        fs::create_dir_all(&path)?;
+    fn write_clans(&self, clans: &[&Timestamped<Clan>]) -> io::Result<()> {
+        let format = format_description!("[year][month][day][hour][minute][second]");
+        let now = time::OffsetDateTime::now_utc().format(&format).unwrap();
+
         for clan in clans {
-            let contents = json::to_string_pretty(clan)?;
-            fs::write(path.join(&clan.tag), contents).unwrap();
+            let path = self.base.join("clans").join(&clan.tag);
+            fs::create_dir_all(&path)?;
+            let contents = json::to_string_pretty(clan.data())?;
+            fs::write(path.join(&now), contents)?;
         }
         Ok(())
     }
@@ -68,24 +60,18 @@ impl Files {
 
 impl Store for Files {
     fn load_players(&self) -> BTreeSet<String> {
-        self.read_latest("players")
-            .unwrap()
-            .filter_map(filename)
-            .collect()
+        self.load_all("players").unwrap()
     }
 
     fn load_clans(&self) -> BTreeSet<String> {
-        self.read_latest("clans")
-            .unwrap()
-            .filter_map(filename)
-            .collect()
+        self.load_all("clans").unwrap()
     }
 
-    fn save_players(&self, players: &[&Player]) {
+    fn save_players(&self, players: &[&Timestamped<Player>]) {
         self.write_players(players).unwrap();
     }
 
-    fn save_clans(&self, clans: &[&Clan]) {
+    fn save_clans(&self, clans: &[&Timestamped<Clan>]) {
         self.write_clans(clans).unwrap();
     }
 }

@@ -8,9 +8,9 @@ use super::*;
 #[derive(Debug)]
 pub(super) struct Api {
     client: Client,
-    players: RefCell<BTreeMap<String, Player>>,
-    clans: RefCell<BTreeMap<String, Clan>>,
-    warlogs: RefCell<BTreeMap<String, ClanWarLog>>,
+    players: RefCell<BTreeMap<String, Timestamped<Player>>>,
+    clans: RefCell<BTreeMap<String, Timestamped<Clan>>>,
+    warlogs: RefCell<BTreeMap<String, Timestamped<ClanWarLog>>>,
 }
 
 impl Api {
@@ -27,28 +27,32 @@ impl Api {
             warlogs,
         }
     }
-    pub(super) fn all_players(&self) -> Ref<'_, BTreeMap<String, Player>> {
+    pub(super) fn all_players(&self) -> Ref<'_, BTreeMap<String, Timestamped<Player>>> {
         self.players.borrow()
     }
 
-    pub(super) fn all_clans(&self) -> Ref<'_, BTreeMap<String, Clan>> {
+    pub(super) fn all_clans(&self) -> Ref<'_, BTreeMap<String, Timestamped<Clan>>> {
         self.clans.borrow()
     }
 
-    pub(super) fn player(&self, tag: &str) -> Option<Ref<'_, Player>> {
+    pub(super) fn player(&self, tag: &str) -> Option<Ref<'_, Timestamped<Player>>> {
         if !self.players.borrow().contains_key(tag) {
             if let Some(player) = self.get_player(tag) {
-                self.players.borrow_mut().insert(player.tag.clone(), player);
+                self.players
+                    .borrow_mut()
+                    .insert(player.tag.clone(), player.into());
             }
         }
         let players = self.players.borrow();
         Ref::filter_map(players, |players| players.get(tag)).ok()
     }
 
-    pub(super) fn clan(&self, tag: &str) -> Option<Ref<'_, Clan>> {
+    pub(super) fn clan(&self, tag: &str) -> Option<Ref<'_, Timestamped<Clan>>> {
         if !self.clans.borrow().contains_key(tag) {
             if let Some(clan) = self.get_clan(tag) {
-                self.clans.borrow_mut().insert(clan.tag.clone(), clan);
+                self.clans
+                    .borrow_mut()
+                    .insert(clan.tag.clone(), clan.into());
             }
         }
         let clans = self.clans.borrow();
@@ -62,7 +66,9 @@ impl Api {
 
         if !self.warlogs.borrow().contains_key(tag) {
             if let Some(warlog) = self.get_warlog(tag) {
-                self.warlogs.borrow_mut().insert(tag.to_string(), warlog);
+                self.warlogs
+                    .borrow_mut()
+                    .insert(tag.to_string(), warlog.into());
             }
         }
 

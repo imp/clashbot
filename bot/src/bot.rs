@@ -89,11 +89,11 @@ impl Bot {
         self.save_clans();
     }
 
-    fn load_players(&mut self) {
+    pub(crate) fn load_players(&mut self) {
         self.players_queue = self.store.load_players();
     }
 
-    fn load_clans(&mut self) {
+    pub(crate) fn load_clans(&mut self) {
         self.clans_queue = self.store.load_clans();
     }
 
